@@ -1,0 +1,87 @@
+
+P1
+
+Part a
+
+Part a_1
+select d.month, d.day, d.date, count(*) 
+FROM fact_table as FT, date_dimension as d
+where FT.reported_date_key= d.surrogate_key
+group by (d.month, d.date, d.day)
+order by (d.month, d.date, d.day)
+
+Part a_2
+select count(*), d.day_of_week, d.week_in_year
+from fact_table as FT, date_dimension as d,mobility_dimension as m
+where FT.reported_date_key= d.surrogate_key and m.subregion_2='Ottawa'
+group by rollup(d.week_in_year,d.day_of_week)
+order by (d.week_in_year, d.day_of_week)
+
+Part b_1
+select sum(isFatal) as fatal,sum(isResolved) as resolved, p.phu_name
+from fact_table as FT, phu_location_dimension as p
+where FT.Phu_location_key= 0 and FT.phu_location_key= p.surrogate_key
+group by (p.phu_name, p.city)
+
+Part b_2
+select count(*) as Cases, p.phu_name,s.status_phu
+from fact_table as FT, phu_location_dimension as p,special_measures_dimension as s
+where FT.phu_location_key= p.surrogate_key AND FT.special_measures_key=s.surrogate_key AND s.status_phu='Stay-at-home'
+group by (p.phu_name,s.status_phu)
+
+Part c_1
+select SUM(FT.isFatal) as Fatal, d.month, p.city
+from fact_table as FT, date_dimension as d, phu_location_dimension as p
+where (p.city= 'Toronto' or p.city= 'Ottawa') and FT.phu_location_key= p.surrogate_key and FT.reported_date_key= d.surrogate_key and (d.month= 9 or d.month= 10) 
+group by (d.month, p.city)
+
+Part c_2
+select SUM(FT.isUnresolved) as Unresolved, d.month, m.date, m.subregion_2, m.parks, m.transit_stations 
+from fact_table as FT, mobility_dimension as m, date_dimension as d
+where m.parks IS NOT NULL AND (m.subregion_2= 'Toronto' or m.subregion_2= 'Ottawa') and FT.mobility_key= m.surrogate_key and (d.month= 9 or d.month= 10) and FT.reported_date_key= d.surrogate_key
+group by (d.month, m.date, m.subregion_2, m.parks, m.transit_stations)
+order by (d.month, m.date, m.subregion_2)
+
+Part d_1
+select count(*) as case, s.reporting_phu, s.start_date, s.end_date 
+from fact_table as FT, special_measures_dimension as s
+where s.surrogate_key= FT.special_measures_key and S.Reporting_phu='Peel Public Health'
+group by (s.reporting_phu, start_date, end_date)
+
+Part d_2
+select SUM(Isresolved) as Cases, d.month,M.subregion_2, AVG(M.parks) AS Park,AVG(M.Workplaces) AS Workplace
+from fact_table as FT, date_dimension as d, Mobility_dimension as M
+where (M.subregion_2= 'Peel' or M.subregion_2= 'Ottawa') and FT.mobility_key= M.surrogate_key and FT.reported_date_key= d.surrogate_key 
+group by (d.month, M.subregion_2)
+Order by (d.month)
+
+Part d_3
+SELECT count(*) as CASES, D.Date,D.holiday,D.weekend
+From fact_table as FT, date_dimension as D
+Where FT.reported_date_key=D.surrogate_key AND D.holiday=‘Yes’
+GROUP BY(D.date, D.holiday,D.weekend)
+Order BY(D.date)
+
+Part2
+
+Part2 A
+SELECT count(Isresolved), F.Reported_date_key, D.Date
+FROM fact_table as F, date_dimension as D
+Where F.Reported_Date_key=D.Surrogate_Key 
+GROUP BY (F.Reported_Date_Key, D.Date) 
+ORDER BY count DESC
+LIMIT 5
+
+Part2 B
+SELECT D.Week_in_year, P.Phu_name, count(p.phu_name) As total, RANK() OVER (PARTITION BY D.week_in_year ORDER BY count(*))
+FROM fact_table as F, date_dimension as D, Phu_location_dimension as P
+Where F.Phu_location_key=P.surrogate_key AND F.Reported_date_key=D.surrogate_key
+Group BY (D.week_in_year,P.Phu_name)
+
+
+Part2_C
+SELECT DISTINCT Count(F.Isresolved) OVER W AS resolved, M.subregion_2,D.month
+FROM fact_table as F, Date_dimension as D, Mobility_dimension as M
+Where F.Reported_date_key=D.surrogate_key AND F.Mobility_key=M.surrogate_key AND M.subregion_2='Ottawa'
+WINDOW W AS (PARTITION BY D.month)
+ORDER BY D.month
